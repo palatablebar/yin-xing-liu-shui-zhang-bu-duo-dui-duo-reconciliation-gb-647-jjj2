@@ -14,9 +14,11 @@ from .modules.m4_candidates import handler as m4_handler
 from .modules.m5_matching import handler as m5_handler
 from .modules.m6_diff import handler as m6_handler
 from .modules.m7_export import handler as m7_handler
+from .modules.m8_close import handler as m8_handler
+from .modules.m8_close import service as close_service
 
 MODULES = (m1_handler, m2_handler, m3_handler, m4_handler, m5_handler,
-           m6_handler, m7_handler)
+           m6_handler, m7_handler, m8_handler)
 
 
 def create_app(settings: config.Settings | None = None) -> FastAPI:
@@ -38,16 +40,22 @@ def create_app(settings: config.Settings | None = None) -> FastAPI:
     def health(request: Request) -> dict:
         store = request.app.state.store
         run = store.latest_run()
+        revision = close_service.current(store, run)
         return {
             "status": "ok",
             "rule_version": settings.rule_version,
             "run_id": run["run_id"] if run else None,
             "status_of_run": run["status"] if run else "empty",
+            "revision_id": revision["revision_id"] if revision else None,
+            "completed": revision["status"] if revision else "none",
         }
 
     @app.post("/api/demo/run")
-    def demo(request: Request) -> dict:
-        return pipeline.run_demo(request.app.state.settings, request.app.state.store)
+    def demo(request: Request, rounds: int = 1, solve: bool = True,
+             max_accounts: int | None = None) -> dict:
+        return pipeline.run_demo(request.app.state.settings, request.app.state.store,
+                                 rounds=rounds, solve=solve,
+                                 max_accounts=max_accounts)
 
     def _head_ok() -> Response:
         return Response(status_code=200, media_type="text/html; charset=utf-8")

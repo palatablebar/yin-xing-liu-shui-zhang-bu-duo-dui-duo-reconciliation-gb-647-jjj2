@@ -9,7 +9,7 @@
   </header>
   {% if reconciliation %}
   <section class="panel">
-    <h2>对账</h2>
+    <h2>对账 <small class="page-meta">{{ completion.label }}{% if completion.revision_id %} · {{ completion.revision_id }}{% endif %}</small></h2>
     <table class="grid compact" id="identity-table">
       <thead><tr><th>名称</th><th class="num">左值</th><th class="num">右值</th><th>状态</th></tr></thead>
       <tbody>
@@ -25,6 +25,48 @@
     </table>
   </section>
   {% endif %}
+  <section class="panel">
+    <h2>账户完成状态</h2>
+    <div class="table-wrap">
+      <table class="grid" id="account-table">
+        <thead><tr><th>账户</th><th>状态</th><th class="num">匹配组</th><th>说明</th><th>完成时间</th></tr></thead>
+        <tbody>
+        {% for item in accounts %}
+          <tr class="{% if item.status != 'done' %}unmatched{% endif %}">
+            <td class="mono">{{ item.account or '（空账户）' }}</td>
+            <td class="state">{{ item.label }}</td>
+            <td class="num mono">{{ item.groups }}</td>
+            <td class="mono">{{ item.reason or '-' }}</td>
+            <td class="mono">{{ item.computed_at|localdt }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% if not accounts %}<p class="empty">还没有账户。</p>{% endif %}
+    </div>
+  </section>
+  <section class="panel">
+    <h2>关账版本</h2>
+    <div class="table-wrap">
+      <table class="grid" id="revision-table">
+        <thead><tr><th>版本</th><th class="num">序号</th><th>状态</th><th class="num">已确认账户</th><th>生成时间</th><th>当前发布</th><th>导出</th></tr></thead>
+        <tbody>
+        {% for item in revisions %}
+          <tr{% if item.published %} class="published"{% endif %}>
+            <td class="mono">{{ item.revision_id }}</td>
+            <td class="num mono">{{ item.seq }}</td>
+            <td class="state">{% if item.status == 'closed' %}全部完成{% else %}分批{% endif %}</td>
+            <td class="num mono">{{ item.accounts_done }}/{{ item.accounts_total }}</td>
+            <td class="mono">{{ item.created_at|localdt }}</td>
+            <td class="state">{% if item.published %}是{% else %}否{% endif %}</td>
+            <td><a class="mono" href="/api/close/revisions/{{ item.revision_id }}/report.csv">CSV</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% if not revisions %}<p class="empty">还没有关账版本。</p>{% endif %}
+    </div>
+  </section>
   <section class="panel">
     <h2>运行历史</h2>
     <div class="table-wrap">

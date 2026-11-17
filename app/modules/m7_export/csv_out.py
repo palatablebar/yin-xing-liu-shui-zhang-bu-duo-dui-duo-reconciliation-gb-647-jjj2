@@ -21,11 +21,44 @@ def _money(value) -> str:
     return str(value)
 
 
-def report_text(records: list[dict], matches: list[dict], reconciliation: dict) -> str:
+def _completion_rows(completion: dict | None) -> list[list[str]]:
+    """报告头部的关账标记：与页面顶部、清单 JSON 用同一份文字。"""
+    if not completion:
+        return [["关账", "未关账", "", "", "", "", "", "", "", "", "", ""]]
+    rows = [[
+        "关账",
+        completion.get("revision_id") or "",
+        completion.get("label", ""),
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "已完成" if completion.get("complete") else "分批",
+    ]]
+    for item in completion.get("pending", []):
+        rows.append([
+            "未关账账户",
+            item.get("account", ""),
+            item.get("label", ""),
+            "", "", "", "", "", "", "", "",
+            item.get("reason", ""),
+        ])
+    return rows
+
+
+def report_text(records: list[dict], matches: list[dict], reconciliation: dict,
+                completion: dict | None = None,
+                quarantine_records: list[dict] | None = None) -> str:
     totals = reconciliation["totals"]
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(HEADER)
+    for row in _completion_rows(completion):
+        writer.writerow(row)
 
     for key, label in (
         ("bank_total", "银行合计"),
@@ -73,7 +106,7 @@ def report_text(records: list[dict], matches: list[dict], reconciliation: dict) 
             reasons.label(item["reason"]),
         ])
 
-    for record in records:
+    for record in (quarantine_records if quarantine_records is not None else records):
         if record["status"] != "quarantine":
             continue
         writer.writerow([

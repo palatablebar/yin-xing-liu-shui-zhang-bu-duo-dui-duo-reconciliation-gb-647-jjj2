@@ -17,6 +17,12 @@
   <div class="run-meta">
     {% if run %}<span class="mono">{{ run.run_id }}</span><span class="mono">{{ run.created_at|localdt }}</span>
     {% else %}<span>无批次</span>{% endif %}
+    {% if completion %}
+    <span class="close-mark {% if completion.complete %}closed{% else %}partial{% endif %}"
+          id="close-mark" title="{{ completion.revision_id or '' }}">
+      {{ completion.label }}{% if completion.revision_id %} · {{ completion.revision_id }}{% endif %}
+    </span>
+    {% endif %}
   </div>
 </header>
 <div id="flash" class="flash" hidden></div>

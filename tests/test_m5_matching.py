@@ -126,7 +126,8 @@ def test_result_independent_of_candidate_order(client, demo):
     # TRAP-19：候选顺序反转后匹配组不变
     store = client.app.state.store
     records = store.records(demo["run_id"])
-    candidates = store.candidates(demo["run_id"])
+    candidates = store.account_candidates(demo["run_id"])
+    assert candidates
     forward = solve.solve(candidates, records, client.app.state.settings)
     backward = solve.solve(list(reversed(candidates)), records, client.app.state.settings)
     assert [item["match_id"] for item in forward] == [item["match_id"] for item in backward]
@@ -135,7 +136,8 @@ def test_result_independent_of_candidate_order(client, demo):
 def test_fee_actual_matches_member_rows(client, demo):
     group = next(item for item in groups(client) if item["bank_ids"] == ["000001"])
     assert group["fee_actual"] == "5.00"
-    assert group["fee_alloc"] == "0.98"
+    # 手续费在账户内分摊：该组只与同账户其他组竞争尾差，不再受跨账户组影响。
+    assert group["fee_alloc"] == "0.96"
 
 
 def test_unmatched_counts_after_solve(client, demo):

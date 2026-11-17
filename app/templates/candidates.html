@@ -5,8 +5,15 @@
   <header class="page-head">
     <h1>候选</h1>
     <span class="page-meta">{{ items|length }} 条</span>
+    <span class="page-meta">{{ published_accounts|length }} 个已确认账户</span>
     <a class="btn" href="/matches">去匹配</a>
   </header>
+  {% if completion and completion.pending %}
+  <section class="close-banner">
+    <b>{{ completion.label }}</b>：候选只列已确认账户；以下账户未算完。
+    {% for item in completion.pending %}<span class="chip chip-warn">{{ item.account }} {{ item.label }}</span>{% endfor %}
+  </section>
+  {% endif %}
   <section class="panel">
     <h2>层级分布</h2>
     <div class="chips">

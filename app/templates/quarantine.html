@@ -7,6 +7,12 @@
     <span class="page-meta">{{ rows|length }} 条</span>
     <a class="btn" href="/api/quarantine.csv">下载 CSV</a>
   </header>
+  {% if completion and completion.pending %}
+  <section class="close-banner">
+    <b>{{ completion.label }}</b>：以下账户未算完，隔离行照常可见，但不进入已发布账区。
+    {% for item in completion.pending %}<span class="chip chip-warn">{{ item.account }} {{ item.label }}</span>{% endfor %}
+  </section>
+  {% endif %}
   <section class="panel">
     <h2>原因分布</h2>
     <table class="grid compact" id="reason-table">

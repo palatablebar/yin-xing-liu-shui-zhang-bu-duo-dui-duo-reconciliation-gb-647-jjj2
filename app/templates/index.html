@@ -10,6 +10,13 @@
   <span class="total"><b>隔离</b><em>{{ c.get('bank_quarantine', 0) + c.get('ledger_quarantine', 0) }}</em>条</span>
   <span class="total total-right"><b>差额</b><em>{% if reconciliation %}{{ reconciliation.totals.match_gap|money }}{% else %}0.00{% endif %}</em>元</span>
 </section>
+{% if completion and completion.pending %}
+<section class="close-banner" id="close-banner">
+  <b>{{ completion.label }}</b>：未算完的账户不进入已发布账区。
+  {% for item in completion.pending %}<span class="chip chip-warn">{{ item.account }} {{ item.label }}</span>{% endfor %}
+  <button class="btn" data-action="advance">继续求解</button>
+</section>
+{% endif %}
 <main class="workbench">
   <section class="side side-bank">
     <header class="side-head">
@@ -41,14 +48,14 @@
         <thead><tr><th>流水号</th><th>账户</th><th>时间</th><th>方向</th><th class="num">金额</th><th class="num">手续费</th><th>状态</th></tr></thead>
         <tbody>
         {% for row in bank_rows %}
-          <tr data-pair="{{ pairs.get(row.txn_no, '') }}" class="{% if row.txn_no not in pairs %}unmatched{% endif %}">
+          <tr data-pair="{{ pairs.get(row.txn_no, '') }}" class="{% if row.txn_no not in pairs and row.account in (done_accounts or []) %}unmatched{% endif %}">
             <td class="mono">{{ row.txn_no }}</td>
             <td class="mono">{{ row.account }}</td>
             <td class="mono">{{ row.posted_at|localdt }}</td>
             <td>{{ '收' if row.direction > 0 else '付' }}</td>
             <td class="num mono">{{ '+' if row.direction > 0 else '−' }}{{ row.amount|money }}</td>
             <td class="num mono">{{ row.fee|money }}</td>
-            <td class="state">{% if row.txn_no in pairs %}已匹配{% else %}未匹配{% endif %}</td>
+            <td class="state">{% if row.txn_no in pairs %}已匹配{% elif row.account not in (done_accounts or []) %}待关账{% else %}未匹配{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>
@@ -75,13 +82,13 @@
         <thead><tr><th>凭证号</th><th>账户</th><th>时间</th><th>方向</th><th class="num">金额</th><th>状态</th></tr></thead>
         <tbody>
         {% for row in ledger_rows %}
-          <tr data-pair="{{ pairs.get(row.txn_no, '') }}" class="{% if row.txn_no not in pairs %}unmatched{% endif %}">
+          <tr data-pair="{{ pairs.get(row.txn_no, '') }}" class="{% if row.txn_no not in pairs and row.account in (done_accounts or []) %}unmatched{% endif %}">
             <td class="mono">{{ row.txn_no }}</td>
             <td class="mono">{{ row.account }}</td>
             <td class="mono">{{ row.posted_at|localdt }}</td>
             <td>{{ '收' if row.direction > 0 else '付' }}</td>
             <td class="num mono">{{ '+' if row.direction > 0 else '−' }}{{ row.amount|money }}</td>
-            <td class="state">{% if row.txn_no in pairs %}已匹配{% else %}未匹配{% endif %}</td>
+            <td class="state">{% if row.txn_no in pairs %}已匹配{% elif row.account not in (done_accounts or []) %}待关账{% else %}未匹配{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>

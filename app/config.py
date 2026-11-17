@@ -9,9 +9,14 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
 
-RULE_VERSION = "2026.11.1"
+RULE_VERSION = "2026.11.2"
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
+
+# 每个账户允许的子集搜索节点预算。节点数确定，不依赖墙钟，因此同一输入在同一预算下
+# 得到同一结果；预算耗尽只把该账户标为 timeout 延后，不影响其他账户。
+# 约 700 万节点/秒，1 亿节点 ≈ 单账户 15 秒；可用 LEDGERBANK_SOLVE_BUDGET 调整后重跑。
+DEFAULT_SOLVE_BUDGET = 100_000_000
 
 # 编码回退链：先按带 BOM 的 UTF-8 解，再按 UTF-8，最后按 GB18030。
 ENCODING_CHAIN = ("utf-8-sig", "utf-8", "gb18030")
@@ -53,6 +58,7 @@ class Settings:
     encodings: tuple = ENCODING_CHAIN
     sentinels: tuple = SENTINELS
     accounts: dict = field(default_factory=lambda: dict(ACCOUNTS))
+    solve_budget: int = DEFAULT_SOLVE_BUDGET
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -61,6 +67,7 @@ class Settings:
             rule_version=os.environ.get("RULE_VERSION", RULE_VERSION),
             sample_dir=os.environ.get("SAMPLE_DIR", str(PROJECT_DIR / "sample_data")),
             tz_name=os.environ.get("TZ", "Asia/Shanghai"),
+            solve_budget=int(os.environ.get("LEDGERBANK_SOLVE_BUDGET", DEFAULT_SOLVE_BUDGET)),
         )
 
     def params(self) -> dict:
@@ -70,4 +77,5 @@ class Settings:
             "subset_max": self.subset_max,
             "fee_quantum": str(self.fee_quantum),
             "timezone": self.tz_name,
+            "solve_budget": self.solve_budget,
         }

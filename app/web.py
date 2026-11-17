@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
-from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
@@ -11,10 +10,12 @@ from fastapi.templating import Jinja2Templates
 from . import reasons
 from .config import BASE_DIR
 from .modules.m2_contract import service as contract_service
+from .modules.m4_candidates import service as candidate_service
 from .modules.m5_matching.subset import TIER_NAMES
-from .modules.m6_diff import differences as differences_mod
 from .modules.m6_diff import history as history_mod
 from .modules.m7_export import service as export_service
+from .modules.m8_close import account as close_account
+from .modules.m8_close import view as close_view
 
 TEMPLATE_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
@@ -79,6 +80,10 @@ def tier_label(tier) -> str:
     return TIER_NAMES.get(int(tier), "")
 
 
+def account_label(status: str) -> str:
+    return close_account.label(status)
+
+
 STATUS_LABELS = {
     "matched": "已匹配",
     "ready": "待匹配",
@@ -120,12 +125,16 @@ def setup(app: FastAPI) -> None:
 
     def base(request: Request, title: str, current: str) -> dict:
         store = request.app.state.store
+        run = store.latest_run()
+        revision = close_view.revision(store, run)
         return {
             "request": request,
             "title": title,
             "current": current,
             "nav": NAV,
-            "run": store.latest_run(),
+            "run": run,
+            "revision": revision,
+            "completion": close_view.completion(revision),
             "settings": request.app.state.settings,
         }
 
@@ -139,7 +148,8 @@ def setup(app: FastAPI) -> None:
         context = base(request, "工作台", "/")
         run = context["run"]
         records = store.records(run["run_id"]) if run else []
-        matches = store.matches(run["run_id"]) if run else []
+        matches = close_view.matches(store, run)
+        states = store.account_state(run["run_id"]) if run else {}
         bank_rows = [row for row in records if row["side"] == "bank" and row["status"] == "valid"]
         ledger_rows = [row for row in records
                        if row["side"] == "ledger" and row["status"] == "valid"]
@@ -147,15 +157,15 @@ def setup(app: FastAPI) -> None:
         for group in matches:
             for key in group["bank_ids"] + group["ledger_ids"]:
                 pairs[key] = group["match_id"]
-        reconciliation = (
-            differences_mod.reconcile(records, matches, settings) if run else None
-        )
+        reconciliation = close_view.reconciliation(store, run, settings) if run else None
+        done_accounts = set(context["revision"]["accounts"]) if context["revision"] else set()
         context.update({
             "bank_rows": bank_rows,
             "ledger_rows": ledger_rows,
             "matches": matches,
             "reconciliation": reconciliation,
             "pairs": pairs,
+            "done_accounts": done_accounts,
             "contract": contract_service.payload(settings),
             "quarantine_count": len(store.quarantine(run["run_id"])) if run else 0,
         })
@@ -176,23 +186,31 @@ def setup(app: FastAPI) -> None:
         return render(request, "quarantine.html", context)
 
     @app.get("/candidates")
-    def candidates(request: Request):
+    def candidates_page(request: Request):
         store = request.app.state.store
+        settings = request.app.state.settings
         context = base(request, "候选", "/candidates")
         run = context["run"]
-        items = store.candidates(run["run_id"]) if run else []
+        published = close_view.revision(store, run)
+        done = set(published["accounts"]) if published else set()
+        items = candidate_service.payload(store, run, settings)["candidates"] if run else []
         tiers: dict[str, int] = {}
         for item in items:
             tiers[str(item["tier"])] = tiers.get(str(item["tier"]), 0) + 1
-        context.update({"items": items, "tiers": tiers, "tier_names": TIER_NAMES})
+        context.update({
+            "items": items,
+            "tiers": tiers,
+            "tier_names": TIER_NAMES,
+            "published_accounts": sorted(done),
+        })
         return render(request, "candidates.html", context)
 
     @app.get("/matches")
-    def matches(request: Request):
+    def matches_page(request: Request):
         store = request.app.state.store
         context = base(request, "匹配", "/matches")
         run = context["run"]
-        groups = store.matches(run["run_id"]) if run else []
+        groups = close_view.matches(store, run)
         fee_total = sum((Decimal(group["fee_alloc"]) for group in groups), Decimal("0.00"))
         context.update({
             "groups": groups,
@@ -208,17 +226,32 @@ def setup(app: FastAPI) -> None:
         context = base(request, "批次", "/batches")
         run = context["run"]
         batches_list = history_mod.batches(store, 12)
-        reconciliation = None
+        states = store.account_state(run["run_id"]) if run else {}
+        reconciliation = close_view.reconciliation(store, run, settings) if run else None
         manifest = None
-        if run:
-            records = store.records(run["run_id"])
-            matches = store.matches(run["run_id"])
-            reconciliation = differences_mod.reconcile(records, matches, settings)
+        if run and reconciliation is not None:
             manifest = history_mod.manifest(store, run, reconciliation["totals"])
+        account_rows = [
+            {
+                "account": name,
+                "status": state["status"],
+                "label": account_label(state["status"]),
+                "groups": state["groups"],
+                "reason": state.get("reason", ""),
+                "computed_at": state.get("computed_at", ""),
+            }
+            for name, state in sorted(states.items())
+        ]
+        revisions = store.list_revisions(run["run_id"], 10) if run else []
+        published_id = store.published_revision_id(run["run_id"]) if run else None
+        for item in revisions:
+            item["published"] = item["revision_id"] == published_id
         context.update({
             "batches": batches_list,
             "reconciliation": reconciliation,
             "manifest": manifest,
+            "accounts": account_rows,
+            "revisions": revisions,
         })
         return render(request, "batches.html", context)
 

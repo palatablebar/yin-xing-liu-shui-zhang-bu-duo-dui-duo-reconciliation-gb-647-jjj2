@@ -109,5 +109,7 @@ def test_candidate_order_deterministic(client, demo):
     first = candidate.build(records, client.app.state.settings)
     second = candidate.build(list(reversed(records)), client.app.state.settings)
     assert [item["cand_id"] for item in first] == [item["cand_id"] for item in second]
-    keys = [(item["tier"], Decimal(item["diff"]), item["day_gap"]) for item in first]
+    # 跨账户汇总后按「账户 → 层级 → 差额 → 日期差」排序，账户顺序稳定。
+    keys = [(item["account"], item["tier"], Decimal(item["diff"]), item["day_gap"])
+            for item in first]
     assert keys == sorted(keys)

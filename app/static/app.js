@@ -37,7 +37,8 @@ async function runAction(name) {
   const urls = {
     demo: "/api/demo/run",
     candidates: "/api/candidates",
-    matches: "/api/matches",
+    matches: "/api/close/advance",
+    advance: "/api/close/advance",
   };
   const url = urls[name];
   if (!url) return;

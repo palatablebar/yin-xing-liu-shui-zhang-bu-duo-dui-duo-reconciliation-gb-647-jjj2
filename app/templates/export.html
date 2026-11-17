@@ -5,7 +5,18 @@
   <header class="page-head">
     <h1>导出</h1>
     <span class="page-meta">{{ summary.run_id or '无批次' }}</span>
+    {% if summary.completion %}
+    <span class="close-mark {% if summary.completion.complete %}closed{% else %}partial{% endif %}">
+      {{ summary.completion.label }}{% if summary.revision_id %} · {{ summary.revision_id }}{% endif %}
+    </span>
+    {% endif %}
   </header>
+  {% if summary.completion and summary.completion.pending %}
+  <section class="close-banner">
+    <b>{{ summary.completion.label }}</b>：以下账户未算完，不在导出结果里。
+    {% for item in summary.completion.pending %}<span class="chip chip-warn">{{ item.account }} {{ item.label }}</span>{% endfor %}
+  </section>
+  {% endif %}
   <section class="panel">
     <h2>文件</h2>
     <div class="links">

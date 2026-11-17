@@ -80,3 +80,33 @@ select { padding: 0 6px; }
 .empty { margin: 12px; color: var(--ink-faint); font-size: 12px; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* 关账标记：页面与导出共用同一份，完成/分批两种底色 */
+.close-mark {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.close-mark.closed { background: #e9f4ee; color: var(--ok); border-color: #c4e0d2; }
+.close-mark.partial { background: #fdf3e2; color: #8a5a12; border-color: #ecd4ab; }
+
+.close-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 7px 16px;
+  background: #fdf3e2;
+  color: #6d4a12;
+  border-bottom: 1px solid #ecd4ab;
+  font-size: 12px;
+}
+.chip-warn { background: #fff7ea; border-color: #ecd4ab; color: #8a5a12; }
+
+.grid tbody tr.published td { background: #f4f9f6; }

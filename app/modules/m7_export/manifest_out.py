@@ -7,8 +7,12 @@ from decimal import Decimal
 from ...manifest import build_manifest
 
 
-def manifest_text(run: dict, reconciliation: dict | None = None) -> str:
+def manifest_text(run: dict, reconciliation: dict | None = None,
+                  completion: dict | None = None) -> str:
     payload = build_manifest(run)
+    if completion is not None:
+        payload["completion"] = completion
+        payload["revision_id"] = completion.get("revision_id")
     if reconciliation:
         payload["totals"] = {
             key: format(value, "f") if isinstance(value, Decimal) else value
